@@ -7,14 +7,14 @@ import time
 
 import numpy as np
 import torch
-from torch.cuda import amp
+import abc as amp
 from torch import nn
 from torch.nn import functional as F
 from torch import optim
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from data import DATASET_GETTERS
@@ -29,7 +29,7 @@ parser.add_argument('--name', type=str, required=True, help='experiment name')
 parser.add_argument('--data-path', default='./data', type=str, help='data path')
 parser.add_argument('--save-path', default='./checkpoint', type=str, help='save path')
 parser.add_argument('--dataset', default='cifar10', type=str,
-                    choices=['cifar10', 'cifar100'], help='dataset name')
+                    choices=['cifar10', 'cifar100', 'smiling_faces'], help='dataset name')
 parser.add_argument('--num-labeled', type=int, default=4000, help='number of labeled data')
 parser.add_argument("--expand-labels", action="store_true", help="expand labels to fit eval steps")
 parser.add_argument('--total-steps', default=300000, type=int, help='number of total steps to run')
@@ -296,15 +296,15 @@ def train_loop(args, labeled_loader, unlabeled_loader, test_loader,
     # finetune
     del t_scaler, t_scheduler, t_optimizer, teacher_model, unlabeled_loader
     del s_scaler, s_scheduler, s_optimizer
-    ckpt_name = f'{args.save_path}/{args.name}_best.pth.tar'
-    loc = f'cuda:{args.gpu}'
-    checkpoint = torch.load(ckpt_name, map_location=loc)
-    logger.info(f"=> loading checkpoint '{ckpt_name}'")
-    if checkpoint['avg_state_dict'] is not None:
-        model_load_state_dict(student_model, checkpoint['avg_state_dict'])
-    else:
-        model_load_state_dict(student_model, checkpoint['student_state_dict'])
-    finetune(args, labeled_loader, test_loader, student_model, criterion)
+    # ckpt_name = f'{args.save_path}/{args.name}_best.pth.tar'
+    # loc = f'cuda:{args.gpu}'
+    # checkpoint = torch.load(ckpt_name, map_location=loc)
+    # logger.info(f"=> loading checkpoint '{ckpt_name}'")
+    # if checkpoint['avg_state_dict'] is not None:
+    #     model_load_state_dict(student_model, checkpoint['avg_state_dict'])
+    # else:
+    #     model_load_state_dict(student_model, checkpoint['student_state_dict'])
+    # finetune(args, labeled_loader, test_loader, student_model, criterion)
     return
 
 
@@ -445,7 +445,8 @@ def main():
     logger.info(dict(args._get_kwargs()))
 
     if args.local_rank in [-1, 0]:
-        args.writer = SummaryWriter(f"results/{args.name}")
+        # args.writer = SummaryWriter(f"results/{args.name}")
+        pass
 
     if args.seed is not None:
         set_seed(args)

@@ -23,7 +23,8 @@ def get_cifar10(args):
         transforms.RandomHorizontalFlip(),
         transforms.RandomCrop(size=args.resize,
                               padding=int(args.resize*0.125),
-                              padding_mode='reflect'),
+                              # padding_mode='reflect'
+                              ),
         transforms.ToTensor(),
         transforms.Normalize(mean=cifar10_mean, std=cifar10_std)
     ])
@@ -33,7 +34,7 @@ def get_cifar10(args):
     ])
     base_dataset = datasets.CIFAR10(args.data_path, train=True, download=True)
 
-    train_labeled_idxs, train_unlabeled_idxs = x_u_split(args, base_dataset.targets)
+    train_labeled_idxs, train_unlabeled_idxs = x_u_split(args, base_dataset.train_labels) # targets
     # train_labeled_idxs, train_unlabeled_idxs = x_u_split_test(args, base_dataset.targets)
 
     train_labeled_dataset = CIFAR10SSL(
@@ -143,12 +144,14 @@ class TransformMPL(object):
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=args.resize,
                                   padding=int(args.resize*0.125),
-                                  padding_mode='reflect')])
+                                  # padding_mode='reflect'
+                                  )])
         self.aug = transforms.Compose([
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(size=args.resize,
                                   padding=int(args.resize*0.125),
-                                  padding_mode='reflect'),
+                                  # padding_mode='reflect'
+                                  ),
             RandAugment(n=n, m=m)])
         self.normalize = transforms.Compose([
             transforms.ToTensor(),
@@ -169,11 +172,11 @@ class CIFAR10SSL(datasets.CIFAR10):
                          target_transform=target_transform,
                          download=download)
         if indexs is not None:
-            self.data = self.data[indexs]
-            self.targets = np.array(self.targets)[indexs]
+            self.data = self.train_data[indexs] # data
+            self.targets = np.array(self.train_labels)[indexs]
 
     def __getitem__(self, index):
-        img, target = self.data[index], self.targets[index]
+        img, target = self.train_data[index], self.train_labels[index]
         img = Image.fromarray(img)
 
         if self.transform is not None:
@@ -209,6 +212,132 @@ class CIFAR100SSL(datasets.CIFAR100):
 
         return img, target
 
+# def galaxy_zoo(batch_size=20, test_batch_size=20,
+#         dataset_size='normal', resize=400, crop_size=424, network='sqnxt', dataset_type='anp',
+#         dataset_source='server_main'):
+#     # batch_size=20, test_batch_size=20,
+#     #     dataset_size='normal', resize=400, network='sqnxt', dataset_type='anp',
+#     #     dataset_source='server_main'
+#     from torch.utils.data.sampler import SubsetRandomSampler
+#     # batch_size=training_config['batch_size']
+#     # test_batch_size=training_config['test_batch_size']
+#     # resize=training_config['img_size']
+#     # crop_size=training_config['crop_size']
+#     transform_train = transforms.Compose([
+#             # transforms.Grayscale(num_output_channels=1),
+#             transforms.CenterCrop((crop_size,crop_size)),
+#             transforms.Resize(resize),
+#             transforms.ToTensor(),
+#             transforms.Normalize((0.5,), (0.5,)),
+#         ])
+
+#     gz_root = '/home/nilesh/raghav/' + 'imageFolder'
+    
+#     gz_dataset = datasets.ImageFolder(root=gz_root
+#         ,transform=transform_train)
+
+#     split_1 = .8
+#     split_2 = .1
+#     shuffle_dataset = True
+#     random_seed= 42
+
+#     # Creating data indices for training and validation splits:
+#     dataset_size = len(gz_dataset)
+#     indices = list(range(dataset_size))
+#     split_1 = int(np.floor(split_1 * dataset_size))
+#     split_2 = int(np.floor(split_2 * dataset_size))
+#     if shuffle_dataset :
+#         np.random.seed(random_seed)
+#         np.random.shuffle(indices)
+#     train_indices, eval_indices, test_indices = indices[:split_1], indices[split_1:(split_1+split_2)], indices[(split_1+split_2):]
+
+#     # Creating PT data samplers and loaders:
+#     train_sampler = SubsetRandomSampler(train_indices)
+#     eval_sampler = SubsetRandomSampler(eval_indices)
+#     test_sampler = SubsetRandomSampler(test_indices)
+
+#     train_loader = DataLoader(gz_dataset
+#         ,batch_size=batch_size, shuffle=False, num_workers=1, drop_last=True, sampler=train_sampler)
+
+#     eval_loader = DataLoader(gz_dataset
+#         ,batch_size=test_batch_size, shuffle=False, num_workers=1, drop_last=True, sampler=eval_sampler)
+
+#     test_loader = DataLoader(gz_dataset
+#         ,batch_size=test_batch_size, shuffle=False, num_workers=1, drop_last=True, sampler=test_sampler)
+
+#     return train_loader, test_loader, gz_dataset
+
+def galaxy_zoo(args):
+    transform_labeled = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(size=args.resize,
+                              padding=int(args.resize*0.125),
+                              # padding_mode='reflect'
+                              ),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=cifar10_mean, std=cifar10_std)
+    ])
+    transform_val = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize(mean=cifar10_mean, std=cifar10_std)
+    ])
+
+    gz_root = '/mnt/d/frinks/data-20210410T222155Z-001/data/trainFolder/'
+    gz_root1 = '/mnt/d/frinks/data-20210410T222155Z-001/data/testFolder/'
+    base_dataset = datasets.ImageFolder(root=gz_root
+        # ,transform=transform_train
+        )
+
+    train_labeled_idxs, train_unlabeled_idxs = x_u_split(args, [i[1] for i in base_dataset]) # targets
+    # train_labeled_idxs, train_unlabeled_idxs = x_u_split_test(args, base_dataset.targets)
+
+    train_labeled_dataset = galaxy_zooSSL(
+        args.data_path, train_labeled_idxs, train=True,
+        transform=transform_labeled
+    )
+
+    train_unlabeled_dataset = galaxy_zooSSL(
+        args.data_path, train_unlabeled_idxs,
+        train=True,
+        transform=TransformMPL(args, mean=cifar10_mean, std=cifar10_std)
+    )
+
+    test_dataset = datasets.ImageFolder(root=gz_root1
+        ,transform=transform_val
+        )
+
+    return train_labeled_dataset, train_unlabeled_dataset, test_dataset
+
+
+class galaxy_zooSSL(datasets.ImageFolder):
+    def __init__(self, root, indexs, train=True,
+                 transform=None, target_transform=None,
+                 download=False):
+        super().__init__(root=root, 
+                            # train=train,
+                         transform=transform,
+                         target_transform=target_transform,
+                         # download=download
+                         )
+        if indexs is not None:
+            self.data = [self[i] for i in indexs]  # data
+            self.targets = [self[i][0] for i in indexs]
+
+    def __getitem__(self, index):
+        img, target = self.data[index], self.targets[index]
+        img = Image.fromarray(img)
+
+        if self.transform is not None:
+            img = self.transform(img)
+
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return img, target
+
+
+
 
 DATASET_GETTERS = {'cifar10': get_cifar10,
-                   'cifar100': get_cifar100}
+                   'cifar100': get_cifar100,
+                   'smiling_faces': galaxy_zoo}
